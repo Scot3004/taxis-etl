@@ -1,5 +1,4 @@
 # Enable auto-env through the sdkman_auto_env config
 # Add key=value pairs of SDKs to use below
 java=17.0.8-tem
-hadoop=3.3.4
 spark=3.4.0
