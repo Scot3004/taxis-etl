@@ -83,35 +83,36 @@ Files from S3
 ```bash
 export TAXIS_ETL_FILES=yellow_tripdata_2020-01.parquet,yellow_tripdata_2021-01.parquet,yellow_tripdata_2022-01.parquet
 export TAXIS_ETL_DOWNLOAD_FOLDER=downloads
-export TAXIS_ETL_DOWNLOAD_SOURCE=s3
 export TAXIS_ETL_BUCKET_NAME=s3-bucket
 ```
 
-Files from cloud server
+Set AWS credentials
+
+Set the aws credentials for pyspark running the commands
 
 ```bash
-export TAXIS_ETL_FILES=yellow_tripdata_2020-01.parquet,yellow_tripdata_2021-01.parquet,yellow_tripdata_2022-01.parquet
-export TAXIS_ETL_DOWNLOAD_FOLDER=downloads
-export TAXIS_ETL_BASE_URL=https://...
-export TAXIS_ETL_DOWNLOAD_SOURCE=url
+export AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id)
+export AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key)
 ```
 
-For the first time execution download the files by changing the environment variable to true
+> if you're running from a devcontainer, check if the value of the aws credentials is passed by printing the value with the command `echo $AWS_ACCESS_KEY_ID`
+
+### Execution
+
+Executing the etl is possible with the command `spark-submit`
+
+When we have a simple script that get the data from spark we can run it passing the python script
+
 ```bash
-export TAXIS_ETL_DOWNLOAD_SOURCE=local
+spark-submit src/taxis_etl_prft/SimpleApp.py
 ```
 
-Scala is used to run the compiled Java file that contains all the instructions. In this example we are going to run specific classes defined in the code
+But if your package depends in something external, for example s3a from hadoop-aws, you will need to load the package to the spark instance, in this scenario,
+you will need provide the packages for example we run it with the command
 
-* Compile the project using Gradle.
-  * If you are in IntelliJ, go to the right side on your window and select the Gradle tab
-  * Double-click on "`clean`", then "`assemble`" to compile the project
-* Create the downloads directory
-  * run the command `mkdir downloads`
-* Run the following command to execute the class:
-  * `spark-submit --class com.taxis.etl.travel_time.TravelTime --master "local[8]" build/libs/taxisEtl.jar 100`
-  * `spark-submit --class com.taxis.etl.payments_distance.PaymentsDistance --master "local[8]" build/libs/taxisEtl.jar 100`
-  * Wait until the execution finishes and verify the results are in the folder `cd results`
+```bash
+spark-submit --packages org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262 src/taxis_etl_prft/DemoS3.py
+```
 
 ### By
 
@@ -128,23 +129,13 @@ If you see this exception in the logs when you run the spark submit command
 java.lang.RuntimeException: java.lang.ClassNotFoundException: Class org.apache.hadoop.fs.s3a.S3AFileSystem not found
 ```
 
-You can add all the dependencies required by hadoop s3 to the spark config file  `$SPARK_HOME/conf/spark-defaults.conf`
-
-Please ensure that environment varibles `$SPARK_HOME` and `$HADOOP_HOME` are setup
-
-> when you run `sdk env` both environment variables are setup, check that running  `echo $SPARK_HOME` and `echo $HADOOP_HOME`
-
-If you use mac/linux/wsl, you run the following command
-
-```bash
-echo "spark.driver.extraClassPath $HADOOP_HOME/share/hadoop/tools/lib/*:$HADOOP_HOME/share/hadoop/common/*:$HADOOP_HOME/share/hadoop/hdfs/*:$HADOOP_HOME/share/hadoop/common/lib/woodstox-core-5.4.0.jar:$HADOOP_HOME/share/hadoop/common/lib/stax2-api-4.2.1.jar:$HADOOP_HOME/share/hadoop/common/lib/commons-configuration2-2.8.0.jar" >> $SPARK_HOME/conf/spark-defaults.conf
-```
+Please ensure that you're providing the packages in the `spark-submit` command
 
 ### Java exception org.apache.hadoop.fs.s3a.auth.NoAuthWithAWSException
 
-
 If you see this exception in the logs when you run the spark submit command
-```
+
+```yaml
 Caused by: org.apache.hadoop.fs.s3a.auth.NoAuthWithAWSException: 
 No AWS Credentials provided by TemporaryAWSCredentialsProvider SimpleAWSCredentialsProvider EnvironmentVariableCredentialsProvider IAMInstanceCredentialsProvider 
 : com.amazonaws.SdkClientException: Unable to load AWS credentials from environment variables (AWS_ACCESS_KEY_ID (or AWS_ACCESS_KEY) and AWS_SECRET_KEY (or AWS_SECRET_ACCESS_KEY))
@@ -162,9 +153,10 @@ export AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key)
 ```
 
 # java.lang.NoSuchFieldError: JAVA_9
-if you see the exception line 
 
-```
+if you see the exception line
+
+```sh
 py4j.protocol.Py4JJavaError: An error occurred while calling None.org.apache.spark.api.java.JavaSparkContext.
 : java.lang.NoSuchFieldError: JAVA_9
 ```
